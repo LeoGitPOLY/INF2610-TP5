@@ -1,29 +1,33 @@
 #include <stdio.h>
-//...
+#include <stdbool.h>
+
+bool flag_de_fin = false;
 
 // fonction exécutée par les producteurs
-void* producteur( void* pid) {
- 
- // ...
-   return NULL;             
+void *producteur(void *pid)
+{
+
+   // ...
+   return NULL;
 }
 
 // fonction exécutée par les consommateurs
-void* consommateur(void *cid) {
+void *consommateur(void *cid)
+{
    // ...
-    
-  return NULL;   
-  
+
+   return NULL;
 }
 
 // ...
 
 // fonction main
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[])
+{
    /* Les paramètres du programme sont, dans l’ordre :
       le nombre de producteurs, le nombre de consommateurs
       et la taille du tampon.*/
-    
-  // ..
-    return 0;
+
+   // ..
+   return 0;
 }
