@@ -1,3 +1,11 @@
+/*
+ * GuerreDesChiffres.c
+ *
+ * Ecole polytechnique de Montreal, GIGL, Automne  2023
+ * Aurelie Nichols - 2142404
+ * Leonard Pouliot - 2150965
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -23,11 +31,12 @@ static sem_t mutex;
 // fonction exécutée par les producteurs
 void *producteur(void *pid)
 {
-   int nbGenere = 0;
+   int *nbGenere = malloc(sizeof(int));
    srand(time(NULL));
 
    while (1)
    {
+      // printf("Production du thread %d\n", (int)(long)pid);
       sem_wait(&libre);
       int chiffreRandom = (rand() % 9) + 1;
 
@@ -37,25 +46,26 @@ void *producteur(void *pid)
       ip = (ip + 1) % sizeTampon;
       sem_post(&mutex);
 
-      nbGenere++;
       sem_post(&occupe);
 
+      (*nbGenere)++;
       if (flag_de_fin)
          break;
    }
 
-   pthread_exit(&nbGenere);
-   return NULL; // A ENLEVER!!!!
+   printf("Fin de production du thread %d\n", (int)(long)pid);
+   pthread_exit(nbGenere);
 }
 
 // fonction exécutée par les consommateurs
 void *consommateur(void *cid)
 {
-   int nbConsomme = 0;
+   int *nbConsomme = malloc(sizeof(int));
    int objRecupere = 0;
 
    while (1)
    {
+      printf("Consommation du thread %d\n", (int)(long)cid);
       sem_wait(&occupe);
 
       sem_wait(&mutex);
@@ -64,15 +74,15 @@ void *consommateur(void *cid)
       ic = (ic + 1) % sizeTampon;
       sem_post(&mutex);
 
+      sem_post(&libre);
+
       if (objRecupere == 0)
          break;
-
-      nbConsomme++;
-      sem_post(&libre);
+      (*nbConsomme)++;
    }
 
-   pthread_exit(&nbConsomme);
-   return NULL; // A ENLEVER!!!!
+   printf("Fin de consommation du thread %d\n", (int)(long)cid);
+   pthread_exit(nbConsomme);
 }
 
 void actionAlarme()
@@ -113,30 +123,50 @@ int main(int argc, char *argv[])
    {
       int *exit_status;
       pthread_join(prodThreads[i], (void **)&exit_status);
+
       nbTotalProduction += *exit_status;
+      free(exit_status);
    }
 
    // Mettre des zeros pour chaque consommmateur:
-   for (size_t i = 0; i < numCons; i++)
+   sem_wait(&mutex);
+   int nbOverwrite = 0;
+   bool isOverwriting = false;
+   for (size_t i = 0; i < sizeTampon; i++)
    {
+      int value = tampon[ip];
       tampon[ip] = 0;
+
+      isOverwriting = ip == ic ? true : isOverwriting;
+      isOverwriting = value == 0 ? false : isOverwriting;
+
+      if (isOverwriting)
+      {
+         sommeConsommee += value;
+         nbOverwrite++;
+      }
+
       ip = (ip + 1) % sizeTampon;
    }
+   sem_post(&mutex);
 
    // Attente de la fin des treads consommateurs:
-   int nbTotalConsommation = 0;
+   int nbTotalConsommation = nbOverwrite;
    for (size_t i = 0; i < numCons; i++)
    {
       int *exit_status;
       pthread_join(consThreads[i], (void **)&exit_status);
-      nbTotalConsommation += *exit_status;
-   }
 
+      nbTotalConsommation += *exit_status;
+      free(exit_status);
+   }
+   printf("\033[0;31m\n");
    printf("Le nombre production: %d \n", nbTotalProduction);
    printf("Le nombre consommation: %d \n", nbTotalConsommation);
 
    printf("Le sommeProduit: %d \n", sommeProduit);
    printf("Le sommeConsommer: %d \n", sommeConsommee);
+   printf("\033[0m");
 
    free(prodThreads);
    free(consThreads);
